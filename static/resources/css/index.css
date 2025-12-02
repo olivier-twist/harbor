@@ -1,0 +1,32 @@
+/* * This file is the global entry point for styles.
+ * It is primarily used to import Tailwind CSS base layers 
+ * and define any necessary custom fonts or utility overrides.
+ */
+
+/* Tailwind CSS Imports: These directives are necessary 
+   for Tailwind to inject its utility classes into the CSS bundle. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom Base Styles (Optional) */
+
+/* Set the default font to Inter and ensure the body fills the viewport. */
+@layer base {
+  html {
+    /* Using Inter font as per guidelines */
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+/* Ensure the body takes up the full viewport height and width, 
+   providing a clean canvas for the centered React application. */
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  /* Subtle gray background */
+  background-color: #f8f9fa; 
+}
+
+/* You can add custom component classes or specific utility overrides here if needed. */
