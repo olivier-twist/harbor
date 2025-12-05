@@ -3,17 +3,22 @@ import { initializeApp, FirebaseApp } from 'firebase/app';
 import { 
   getAuth, 
   Auth, 
-  User, 
-  signInAnonymously, 
+  User,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
   onAuthStateChanged, 
   connectAuthEmulator 
 } from 'firebase/auth';
 import { 
   getFirestore, 
   Firestore, 
-  connectFirestoreEmulator 
+  connectFirestoreEmulator,
+  doc,
+  setDoc,
+  getDoc
 } from 'firebase/firestore';
 import { firebaseConfig, appId } from './firebaseConfig';
+import AuthScreen from './AuthScreen';
 
 console.log('DEBUG: Firebase Config:', firebaseConfig);
 console.log('DEBUG: App ID:', appId);
@@ -57,36 +62,25 @@ const App: React.FC = () => {
   useEffect(() => {
     // Check if initialization failed globally (auth is undefined)
     if (!auth) {
-      console.error("Firebase Auth not initialized. Cannot proceed with sign-in.");
-      setIsAuthReady(true); // Stop the loading screen if initialization failed.
+      console.error("Firebase Auth not initialized. Cannot proceed.");
+      setIsAuthReady(true);
       return;
     }
 
-    // Initial Sign-In Attempt (anonymous)
-    const handleInitialAuth = async () => {
-      try {
-        await signInAnonymously(auth);
-        console.log('Harbor: Signed in anonymously.');
-      } catch (error) {
-        console.error('Harbor: Initial authentication failed.', error);
-      }
-    };
-    
     // Set up Auth State Listener
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
-      setIsAuthReady(true); // Auth state has been checked
+      setIsAuthReady(true);
       if (user) {
         console.log(`Harbor: User authenticated. UID: ${user.uid}`);
+      } else {
+        console.log('Harbor: No user signed in.');
       }
     });
 
-    // Run the sign-in and start listening
-    handleInitialAuth(); 
-
     // Cleanup the listener on component unmount
     return () => unsubscribe();
-  }, []); // Run only once on mount
+  }, []);
 
   // --- UI Rendering Logic ---
 
@@ -127,7 +121,12 @@ const App: React.FC = () => {
     );
   }
 
-  // Main Application UI
+  // Check 3: Show login screen if not authenticated
+  if (!currentUser) {
+    return <AuthScreen onAuthSuccess={() => {}} />;
+  }
+
+  // Main Application UI (User is authenticated)
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center p-4">
       <header className="w-full max-w-4xl py-6 border-b border-indigo-100">
@@ -138,64 +137,56 @@ const App: React.FC = () => {
       </header>
 
       <main className="w-full max-w-4xl mt-10">
-        {currentUser ? (
-          // Placeholder for Dashboard (Screen 2/3 from Sprint)
-          <div className="bg-white p-8 rounded-xl shadow-2xl border border-indigo-100">
-            <h2 className="text-2xl font-semibold text-gray-800 mb-4">
-              Welcome, User {currentUser.uid.substring(0, 8)}...
-            </h2>
-            <p className="text-gray-600 mb-4">
-              Authentication successful! You are now signed in anonymously.
-            </p>
-            
-            <div className="bg-green-50 border-l-4 border-green-500 p-4 mb-4">
-              <div className="flex items-start">
-                <svg className="h-5 w-5 text-green-500 mt-0.5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                <div>
-                  <p className="text-sm font-medium text-green-800">Firebase Connected</p>
-                  <p className="text-xs text-green-700 mt-1">
-                    Auth, Firestore, and Hosting emulators are working correctly.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-6 p-4 bg-indigo-50 border-l-4 border-indigo-500 text-indigo-700">
-              <p className="font-semibold mb-2">Next Development Steps:</p>
-              <ul className="text-sm space-y-1 list-disc list-inside">
-                <li>Implement Screen 1: Login/Authentication UI (Sprint Task 6)</li>
-                <li>Implement Screen 2: Admin Dashboard (Sprint Task 8)</li>
-                <li>Implement Screen 3: Member Dashboard (Sprint Task 10)</li>
-                <li>Create team creation workflow</li>
-                <li>Build task distribution system</li>
-              </ul>
-            </div>
-
-            <div className="mt-6 bg-gray-50 p-4 rounded-lg">
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">User Information:</h3>
-              <div className="text-xs text-gray-600 space-y-1 font-mono">
-                <p><span className="font-semibold">UID:</span> {currentUser.uid}</p>
-                <p><span className="font-semibold">Anonymous:</span> {currentUser.isAnonymous ? 'Yes' : 'No'}</p>
-                <p><span className="font-semibold">Provider:</span> {currentUser.providerId}</p>
+        <div className="bg-white p-8 rounded-xl shadow-2xl border border-indigo-100">
+          <h2 className="text-2xl font-semibold text-gray-800 mb-4">
+            Welcome, {currentUser.email}
+          </h2>
+          <p className="text-gray-600 mb-4">
+            You are now signed in successfully!
+          </p>
+          
+          <div className="bg-green-50 border-l-4 border-green-500 p-4 mb-4">
+            <div className="flex items-start">
+              <svg className="h-5 w-5 text-green-500 mt-0.5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <div>
+                <p className="text-sm font-medium text-green-800">Authentication Complete</p>
+                <p className="text-xs text-green-700 mt-1">
+                  Email/Password authentication is working correctly.
+                </p>
               </div>
             </div>
           </div>
-        ) : (
-          // Placeholder for Authentication Screen (shouldn't happen often due to auto-sign-in)
-          <div className="bg-white p-8 rounded-xl shadow-xl">
-            <h2 className="text-2xl font-semibold text-red-600 mb-4">Authentication Required</h2>
-            <p className="text-gray-600 mb-4">
-              You are not currently signed in. This shouldn't happen with anonymous auth enabled.
-            </p>
-            <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4">
-              <p className="text-sm text-yellow-800">
-                <span className="font-semibold">Next Task:</span> Implement the full Sign-In/Sign-Up form here (Sprint Task 6).
-              </p>
+
+          <div className="mt-6 p-4 bg-indigo-50 border-l-4 border-indigo-500 text-indigo-700">
+            <p className="font-semibold mb-2">Next Development Steps:</p>
+            <ul className="text-sm space-y-1 list-disc list-inside">
+              <li>✅ Task 2: Admin Sign-In/Sign-Up (COMPLETE)</li>
+              <li>✅ Task 6: Login/Authentication Screen (COMPLETE)</li>
+              <li>🔲 Task 7: Create "Create New Team" screen</li>
+              <li>🔲 Task 8: Implement Team Dashboard</li>
+              <li>🔲 Task 9: Develop "Join Team" screen</li>
+              <li>🔲 Task 10: Implement core Dashboard component</li>
+            </ul>
+          </div>
+
+          <div className="mt-6 bg-gray-50 p-4 rounded-lg">
+            <h3 className="text-sm font-semibold text-gray-700 mb-2">User Information:</h3>
+            <div className="text-xs text-gray-600 space-y-1 font-mono">
+              <p><span className="font-semibold">UID:</span> {currentUser.uid}</p>
+              <p><span className="font-semibold">Email:</span> {currentUser.email}</p>
+              <p><span className="font-semibold">Email Verified:</span> {currentUser.emailVerified ? 'Yes' : 'No'}</p>
             </div>
           </div>
-        )}
+
+          <button
+            onClick={() => auth?.signOut()}
+            className="mt-6 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+          >
+            Sign Out
+          </button>
+        </div>
       </main>
     </div>
   );
